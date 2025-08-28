@@ -61,10 +61,14 @@ const port = process.env.PORT || 3001;
         await app.start(port);
         console.log(`⚡️ Slack Birthday & Anniversary Bot is running on port ${port}!`);
         console.log('Available commands:');
-        console.log('  /birthday add <@user> <MM/DD/YYYY> - Add a birthday');
-        console.log('  /birthday list - List all birthdays');
-        console.log('  /anniversary add <@user> <MM/DD/YYYY> - Add work anniversary');
-        console.log('  /anniversary list - List all work anniversaries');
+        console.log('  /birthday add <@user> <MM/DD/YYYY>      - Add a birthday (updates profile DOB)');
+        console.log('  /birthday list                          - List birthdays (profiles with userId only)');
+        console.log('  /birthday preview <@user> [MM/DD/YYYY]  - Preview a user\'s birthday post');
+        console.log('  /birthday delete <@user>                - Remove a user\'s DOB/config');
+        console.log('  /birthday run                           - Force-post today\'s birthdays to the channel');
+        console.log('  /anniversary add <@user> <MM/DD/YYYY>   - Add work anniversary (updates profile joinDate)');
+        console.log('  /anniversary list                       - List work anniversaries');
+        console.log('  /profile [me|@user|text]                - Show profile card with image and details');
         console.log('  /profile <@user> - Get profile information');
         // --- Birthday scheduler ---
         const channelId = process.env.BIRTHDAY_CHANNEL_ID;
