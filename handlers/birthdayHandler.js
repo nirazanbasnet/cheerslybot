@@ -14,6 +14,7 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
 
             // Try to extract user ID from mention format <@U123456> or <@U123456|name>
             let userId = null;
+            let matchedProfile = null;
             const mentionMatch = userInput.match(/<@([A-Z0-9]+)(?:\|[^>]+)?>/i);
 
             if (mentionMatch) {
@@ -22,32 +23,122 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
                 // Accept raw user IDs like U123... or @U123...
                 userId = userInput.replace(/^@/, '');
             } else {
-                // Fallback: resolve raw @username to user ID via Slack API
-                const username = userInput.startsWith('@') ? userInput.slice(1) : userInput;
-                try {
-                    // Fetch users and try matching by name or display name (case-insensitive)
-                    const usersResponse = await client.users.list();
-                    if (usersResponse.ok) {
-                        const lowered = username.toLowerCase();
-                        const matched = (usersResponse.members || []).find((u) => {
-                            if (u.deleted || u.is_bot) return false;
-                            const handle = (u.name || '').toLowerCase();
-                            const display = (u.profile && u.profile.display_name ? u.profile.display_name : '').toLowerCase();
-                            const real = (u.profile && u.profile.real_name ? u.profile.real_name : '').toLowerCase();
-                            return handle === lowered || display === lowered || real === lowered;
-                        });
-                        if (matched && matched.id) {
-                            userId = matched.id;
+                // First try to match by name/email in team data
+                const searchTerm = userInput.startsWith('@') ? userInput.slice(1) : userInput;
+                console.log('Searching for profile with term:', searchTerm);
+
+                // Check for multiple matches first
+                const multipleMatches = await dataStore.findMultipleProfilesByNameOrEmail(searchTerm);
+                console.log('Found matches:', multipleMatches.length);
+
+                if (multipleMatches.length > 1) {
+                    // Multiple matches found - provide disambiguation
+                    const matchList = multipleMatches.map((match, index) =>
+                        `${index + 1}. ${match.name} (${match.email})`
+                    ).join('\n');
+
+                    await respond({
+                        text: `❓ Multiple matches found for "${searchTerm}":\n\n${matchList}\n\nPlease be more specific by using:\n• Full name: "Binay Maharjan"\n• Email: "binaya_m@jobins.jp"\n• Or use the Slack mention directly`,
+                        response_type: 'ephemeral'
+                    });
+                    return;
+                }
+
+                matchedProfile = multipleMatches.length === 1 ? multipleMatches[0] : null;
+                console.log('Found profile:', matchedProfile ? matchedProfile.name : 'none');
+
+                if (matchedProfile) {
+                    // If profile has userId, use it
+                    if (matchedProfile.userId) {
+                        userId = matchedProfile.userId;
+                        console.log('Using existing userId:', userId);
+                    } else {
+                        // Try to resolve the Slack user by name/email and update profile
+                        try {
+                            const usersResponse = await client.users.list();
+                            if (usersResponse.ok) {
+                                const lowered = searchTerm.toLowerCase();
+                                const matched = (usersResponse.members || []).find((u) => {
+                                    if (u.deleted || u.is_bot) return false;
+                                    const handle = (u.name || '').toLowerCase();
+                                    const display = (u.profile && u.profile.display_name ? u.profile.display_name : '').toLowerCase();
+                                    const real = (u.profile && u.profile.real_name ? u.profile.real_name : '').toLowerCase();
+                                    const email = (u.profile && u.profile.email ? u.profile.email : '').toLowerCase();
+
+                                    // Match by handle, display name, real name, or email
+                                    return handle === lowered || display === lowered || real === lowered ||
+                                        email === lowered || email === matchedProfile.email.toLowerCase();
+                                });
+                                if (matched && matched.id) {
+                                    userId = matched.id;
+                                    // Update the profile with the userId
+                                    await dataStore.updateProfileUserId(matchedProfile.email, userId);
+                                } else {
+                                    console.log('No matching Slack user found for profile:', matchedProfile.name);
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error resolving Slack user:', e);
                         }
                     }
-                } catch (e) {
-                    // ignore and fall through to error below
+                } else {
+                    // Fallback: resolve raw @username to user ID via Slack API
+                    const username = userInput.startsWith('@') ? userInput.slice(1) : userInput;
+                    console.log('No profile found, trying Slack API for:', username);
+                    try {
+                        // Fetch users and try matching by name or display name (case-insensitive)
+                        const usersResponse = await client.users.list();
+                        if (usersResponse.ok) {
+                            const lowered = username.toLowerCase();
+                            const matched = (usersResponse.members || []).find((u) => {
+                                if (u.deleted || u.is_bot) return false;
+                                const handle = (u.name || '').toLowerCase();
+                                const display = (u.profile && u.profile.display_name ? u.profile.display_name : '').toLowerCase();
+                                const real = (u.profile && u.profile.real_name ? u.profile.real_name : '').toLowerCase();
+                                return handle === lowered || display === lowered || real === lowered;
+                            });
+                            if (matched && matched.id) {
+                                userId = matched.id;
+                                console.log('Found Slack user via API:', userId);
+
+                                // Now try to match this Slack user to an existing profile by email or name
+                                const slackEmail = (matched.profile && matched.profile.email ? matched.profile.email : '').toLowerCase();
+                                const slackRealName = (matched.profile && matched.profile.real_name ? matched.profile.real_name : '').toLowerCase();
+
+                                if (slackEmail) {
+                                    // Try to find existing profile by email
+                                    const existingProfile = await dataStore.getProfileByEmail(slackEmail);
+                                    if (existingProfile) {
+                                        console.log('Found existing profile by email:', existingProfile.name);
+                                        // Update the existing profile with userId
+                                        await dataStore.updateProfileUserId(existingProfile.email, userId);
+                                        matchedProfile = existingProfile;
+                                    }
+                                }
+
+                                // If still no match, try by name
+                                if (!matchedProfile && slackRealName) {
+                                    const nameMatches = await dataStore.findMultipleProfilesByNameOrEmail(slackRealName);
+                                    if (nameMatches.length === 1) {
+                                        console.log('Found existing profile by name:', nameMatches[0].name);
+                                        // Update the existing profile with userId
+                                        await dataStore.updateProfileUserId(nameMatches[0].email, userId);
+                                        matchedProfile = nameMatches[0];
+                                    }
+                                }
+                            } else {
+                                console.log('No Slack user found for:', username);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error in Slack API fallback:', e);
+                    }
                 }
             }
 
             if (!userId) {
                 await respond({
-                    text: '❌ Please mention a valid user (pick from autocomplete) or provide a valid @username.',
+                    text: '❌ Please mention a valid user (pick from autocomplete), provide a valid @username, or use a team member name/email.',
                     response_type: 'ephemeral'
                 });
                 return;
@@ -63,10 +154,26 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
             }
 
             // Add birthday to data store
-            await dataStore.addBirthday(userId, date);
+            const profileEmail = matchedProfile ? matchedProfile.email : null;
+            await dataStore.addBirthday(userId, date, profileEmail);
+
+            // Get profile name for response
+            let responseText = `🎉 Birthday added for <@${userId}> on ${date}!`;
+            if (matchedProfile && matchedProfile.name) {
+                responseText = `🎉 Birthday added for ${matchedProfile.name} (<@${userId}>) on ${date}!`;
+            } else {
+                try {
+                    const profile = await dataStore.getProfileByUserId(userId);
+                    if (profile && profile.name) {
+                        responseText = `🎉 Birthday added for ${profile.name} (<@${userId}>) on ${date}!`;
+                    }
+                } catch (e) {
+                    // Keep default response
+                }
+            }
 
             await respond({
-                text: `🎉 Birthday added for <@${userId}> on ${date}!`,
+                text: responseText,
                 response_type: 'in_channel'
             });
 
@@ -294,7 +401,7 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
 
         } else {
             await respond({
-                text: `ℹ️ *Birthday Commands:*\n• \`/birthday add @user MM/DD/YYYY\` - Add a birthday\n• \`/birthday list\` - View all birthdays\n• \`/birthday delete @user\` - Delete a birthday\n• \`/birthday preview @user [MM/DD/YYYY]\` - Preview the celebration message\n\nSet custom message and image by editing \`data/team-data.json\` for the user (fields: \`message\`, \`image\`).`,
+                text: `ℹ️ *Birthday Commands:*\n• \`/birthday add @user MM/DD/YYYY\` - Add a birthday (auto-matches team members by name/email)\n• \`/birthday list\` - View all birthdays\n• \`/birthday delete @user\` - Delete a birthday\n• \`/birthday preview @user [MM/DD/YYYY]\` - Preview the celebration message\n• \`/birthday run\` - Force-post today's birthdays\n\nSet custom message and image by editing \`data/team-data.json\` for the user (fields: \`message\`, \`image\`).`,
                 response_type: 'ephemeral'
             });
         }
