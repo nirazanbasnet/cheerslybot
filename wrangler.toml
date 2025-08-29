@@ -1,0 +1,16 @@
+name = "cheersly-bot"
+main = "worker-complete.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "89900ead407e653f5049bbced18bb913"
+
+[env.production]
+vars = { NODE_ENV = "production" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cheersly-db"
+database_id = "5db3d679-2086-4573-bef9-13d91f7ee8cf"
+
+[build]
+command = "npm install"

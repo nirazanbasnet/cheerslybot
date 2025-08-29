@@ -41,6 +41,11 @@ try {
     const express = require('express');
     expressApp.use('/assets', express.static('assets'));
     console.log('Static assets served at /assets');
+
+    // Health check endpoint
+    expressApp.get('/health', (req, res) => {
+        res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+    });
 } catch (e) {
     console.warn('Could not attach static assets handler:', e && e.message);
 }
