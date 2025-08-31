@@ -80,7 +80,9 @@ const port = process.env.PORT || 3001;
             if (!filename) return null;
             const base = process.env.PUBLIC_BASE_URL || (process.env.NGROK_URL || '');
             if (!base) return null;
-            return `${base.replace(/\/$/, '')}/assets/${filename}`;
+            // Handle image paths that already start with / (like /anniversary/filename.png)
+            const imagePath = filename.startsWith('/') ? filename.slice(1) : filename;
+            return `${base.replace(/\/$/, '')}/assets/${imagePath}`;
         };
 
         const getKathmanduNow = () => {

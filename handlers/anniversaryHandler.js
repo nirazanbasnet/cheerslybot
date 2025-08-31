@@ -224,7 +224,9 @@ const handleAnniversaryCommand = async ({ command, ack, say, respond, client }) 
                 // Always treat as local filename under assets/
                 const base = process.env.PUBLIC_BASE_URL || (process.env.NGROK_URL || '');
                 if (base) {
-                    imageUrl = `${base.replace(/\/$/, '')}/assets/${saved.image}`;
+                    // Handle image paths that already start with / (like /anniversary/filename.png)
+                    const imagePath = saved.image.startsWith('/') ? saved.image.slice(1) : saved.image;
+                    imageUrl = `${base.replace(/\/$/, '')}/assets/${imagePath}`;
                 }
             }
             let message = saved && saved.message
@@ -306,7 +308,11 @@ const handleAnniversaryCommand = async ({ command, ack, say, respond, client }) 
                     if (a.lastCelebratedDate === isoDate) continue;
 
                     const base = process.env.PUBLIC_BASE_URL || (process.env.NGROK_URL || '');
-                    const imageUrl = (a.image && base) ? `${base.replace(/\/$/, '')}/assets/${a.image}` : null;
+                    const imageUrl = (a.image && base) ? (() => {
+                        // Handle image paths that already start with / (like /anniversary/filename.png)
+                        const imagePath = a.image.startsWith('/') ? a.image.slice(1) : a.image;
+                        return `${base.replace(/\/$/, '')}/assets/${imagePath}`;
+                    })() : null;
                     const message = a.message || `🎉🎖️ Congratulations <@${a.userId}> on your work anniversary! 🎖️🎉\n\nThank you for your dedication and hard work! 🚀✨`;
 
                     const blocks = [];

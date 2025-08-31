@@ -225,7 +225,9 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
                 // Always treat as local filename under assets/
                 const base = process.env.PUBLIC_BASE_URL || (process.env.NGROK_URL || '');
                 if (base) {
-                    imageUrl = `${base.replace(/\/$/, '')}/assets/${saved.image}`;
+                    // Handle image paths that already start with / (like /anniversary/filename.png)
+                    const imagePath = saved.image.startsWith('/') ? saved.image.slice(1) : saved.image;
+                    imageUrl = `${base.replace(/\/$/, '')}/assets/${imagePath}`;
                 }
             }
             let message = saved && saved.message
@@ -307,7 +309,11 @@ const handleBirthdayCommand = async ({ command, ack, say, respond, client }) => 
                     if (b.lastCelebratedDate === isoDate) continue;
 
                     const base = process.env.PUBLIC_BASE_URL || (process.env.NGROK_URL || '');
-                    const imageUrl = (b.image && base) ? `${base.replace(/\/$/, '')}/assets/${b.image}` : null;
+                    const imageUrl = (b.image && base) ? (() => {
+                        // Handle image paths that already start with / (like /anniversary/filename.png)
+                        const imagePath = b.image.startsWith('/') ? b.image.slice(1) : b.image;
+                        return `${base.replace(/\/$/, '')}/assets/${imagePath}`;
+                    })() : null;
                     const message = b.message || `:tada::birthday: Happy Birthday, <@${b.userId}>! :birthday::tada:`;
 
                     const blocks = [];
