@@ -85,7 +85,7 @@ const port = process.env.PORT || 3001;
             return `${base.replace(/\/$/, '')}/assets/${imagePath}`;
         };
 
-        const getKathmanduNow = () => {
+        const getTimeNow = () => {
             try {
                 // Build a Date representing current time in Asia/Kathmandu using Intl
                 const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -113,13 +113,13 @@ const port = process.env.PORT || 3001;
         const maybePostTodaysBirthdays = async () => {
             if (!channelId) return;
             try {
-                const nowKtm = getKathmanduNow();
+                const nowTime = getTimeNow();
                 // Only run at 08:00 Asia/Kathmandu
-                if (!(nowKtm.hour === 8 && nowKtm.minute === 0)) return;
+                if (!(nowTime.hour === 8 && nowTime.minute === 0)) return;
 
                 const birthdays = await dataStore.getBirthdays();
-                const todayIso = nowKtm.isoDate;
-                const todayMD = nowKtm.monthDay;
+                const todayIso = nowTime.isoDate;
+                const todayMD = nowTime.monthDay;
 
                 for (const b of birthdays) {
                     if (!b || !b.date || !b.userId) continue;
@@ -167,17 +167,17 @@ const port = process.env.PORT || 3001;
         // Also run immediately on startup
         maybePostTodaysBirthdays();
 
-        // --- Anniversary scheduler (same 08:00 Asia/Kathmandu) ---
+        // --- Anniversary scheduler (08:00 Asia/Kathmandu) ---
         const anniversaryChannelId = process.env.ANNIVERSARY_CHANNEL_ID || channelId;
         const maybePostTodaysAnniversaries = async () => {
             if (!anniversaryChannelId) return;
             try {
-                const nowKtm = getKathmanduNow();
-                if (!(nowKtm.hour === 8 && nowKtm.minute === 0)) return;
+                const nowTime = getTimeNow();
+                if (!(nowTime.hour === 8 && nowTime.minute === 0)) return;
 
                 const anniversaries = await dataStore.getAnniversaries();
-                const todayIso = nowKtm.isoDate;
-                const todayMD = nowKtm.monthDay;
+                const todayIso = nowTime.isoDate;
+                const todayMD = nowTime.monthDay;
 
                 for (const a of anniversaries) {
                     if (!a || !a.date || !a.userId) continue;

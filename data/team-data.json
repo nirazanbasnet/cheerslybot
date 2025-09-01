@@ -386,7 +386,7 @@
       "anniversaryConfig": {
         "message": "🎉🎖️ Congratulations <@U07L4Q2TCV6> on your work anniversary! 🎖️🎉\n\nYour technical skills and collaborative spirit make you an excellent team member! 💻🤝\n\nThank you for your dedication and for always bringing your best to every project! 🌟🚀\n\nHere's to more successful collaborations and continued growth! 🎯✨",
         "image": "/anniversary/sanil-nakarmi-anniversary.png",
-        "lastCelebratedDate": null,
+        "lastCelebratedDate": "2025-09-01",
         "addedAt": "2025-08-29T04:28:57.668Z"
       }
     },
@@ -469,7 +469,7 @@
       }
     },
     {
-      "userId": null,
+      "userId": "U089R1MS1DE",
       "name": "Amir Shakya",
       "email": "amir@jobins.jp",
       "mobile": "9745619494",
@@ -478,7 +478,7 @@
       "joinDate": "January 20, 2025",
       "address": "Mangal bazaar, Patan",
       "bloodGroup": "O+",
-      "dob": "March 31, 1987",
+      "dob": "03/31/1987",
       "image": null,
       "secondaryContact": "9841598444",
       "birthdayConfig": {
